@@ -1,5 +1,6 @@
 """Iesniegumi — minimāls skelets. Visu pārējo būvē komanda kopā ar Claude (skat. BACKLOG.md)."""
 import os
+import re
 import sqlite3
 from flask import Flask, g, render_template, send_file, session, redirect, url_for, request
 
@@ -44,6 +45,82 @@ def inject_globals():
 def index():
     temas = get_db().execute("SELECT id, nosaukums FROM temas ORDER BY nosaukums").fetchall()
     return render_template("index.html", temas=temas)
+
+
+@app.route("/iesniegt", methods=["GET", "POST"])
+def iesniegt():
+    db = get_db()
+    temas = db.execute("SELECT id, nosaukums FROM temas ORDER BY nosaukums").fetchall()
+    values = {
+        "vards": "",
+        "epasts": "",
+        "temas_id": "",
+        "adrese": "",
+        "apraksts": "",
+        "piekritu": False,
+    }
+    errors = {}
+
+    if request.method == "POST":
+        values.update({
+            "vards": request.form.get("vards", "").strip(),
+            "epasts": request.form.get("epasts", "").strip(),
+            "temas_id": request.form.get("temas_id", ""),
+            "adrese": request.form.get("adrese", "").strip(),
+            "apraksts": request.form.get("apraksts", "").strip(),
+            "piekritu": request.form.get("piekritu") == "1",
+        })
+
+        if not values["vards"]:
+            errors["vards"] = "Ievadiet vārdu."
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", values["epasts"]):
+            errors["epasts"] = "Ievadiet derīgu e-pasta adresi."
+        try:
+            temas_id = int(values["temas_id"])
+            tema = db.execute("SELECT id FROM temas WHERE id = ?", (temas_id,)).fetchone()
+            if tema is None:
+                errors["temas_id"] = "Izvēlieties tēmu no saraksta."
+        except ValueError:
+            errors["temas_id"] = "Izvēlieties tēmu no saraksta."
+        if not values["apraksts"]:
+            errors["apraksts"] = "Ievadiet iesnieguma aprakstu."
+        if request.form.get("piekritu") != "1":
+            errors["piekritu"] = "Lai iesniegtu iesniegumu, apstipriniet piekrišanu datu apstrādei."
+
+        if not errors:
+            year = db.execute("SELECT strftime('%Y', 'now', 'localtime')").fetchone()[0]
+            last_number = db.execute(
+                "SELECT COALESCE(MAX(CAST(SUBSTR(numurs, 6) AS INTEGER)), 0) "
+                "FROM iesniegumi WHERE numurs LIKE ?",
+                (f"{year}-%",),
+            ).fetchone()[0]
+            numurs = f"{year}-{last_number + 1:04d}"
+            piekritis_laiks = db.execute("SELECT datetime('now', 'localtime')").fetchone()[0]
+            cursor = db.execute(
+                "INSERT INTO iesniegumi "
+                "(numurs, temas_id, vards, epasts, datu_apstrade_piekrita, piekritis_laiks, adrese, apraksts) "
+                "VALUES (?, ?, ?, ?, 1, ?, ?, ?)",
+                (numurs, temas_id, values["vards"], values["epasts"], piekritis_laiks,
+                 values["adrese"] or None, values["apraksts"]),
+            )
+            db.execute(
+                "INSERT INTO notikumi (iesnieguma_id, veids, loma, teksts) VALUES (?, 'statuss', 'sistema', ?)",
+                (cursor.lastrowid, "Iesniegums reģistrēts ar statusu «Jauns»."),
+            )
+            db.commit()
+            session["apstiprinajuma_numurs"] = numurs
+            return redirect(url_for("apstiprinajums"))
+
+    return render_template("iesniegt.html", temas=temas, values=values,
+                           errors=errors), 400 if errors else 200
+
+
+@app.route("/apstiprinajums")
+def apstiprinajums():
+    numurs = session.get("apstiprinajuma_numurs")
+    if not numurs:
+        return redirect(url_for("iesniegt"))
+    return render_template("apstiprinajums.html", numurs=numurs)
 
 
 @app.route("/static/style.css")
