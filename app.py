@@ -1,12 +1,12 @@
 """Iesniegumi — minimāls skelets. Visu pārējo būvē komanda kopā ar Claude (skat. BACKLOG.md)."""
 import os
 import sqlite3
-from flask import Flask, g, render_template, session, redirect, url_for, request
+from flask import Flask, g, render_template, send_file, session, redirect, url_for, request
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=os.path.dirname(__file__), static_folder=None)
 app.secret_key = os.environ.get("SECRET_KEY", "macibu-uzdevums-nav-drosa-atslega")
 
 LOMAS = {"iedzivotajs": "Iedzīvotājs", "darbinieks": "Darbinieks", "vaditajs": "Vadītājs"}
@@ -44,6 +44,11 @@ def inject_globals():
 def index():
     temas = get_db().execute("SELECT id, nosaukums FROM temas ORDER BY nosaukums").fetchall()
     return render_template("index.html", temas=temas)
+
+
+@app.route("/static/style.css")
+def style():
+    return send_file(os.path.join(os.path.dirname(__file__), "style.css"), mimetype="text/css")
 
 
 @app.post("/loma")
