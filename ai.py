@@ -80,3 +80,81 @@ def ieteikums(apraksts: str) -> dict:
         except Exception:
             pass  # kļūdas gadījumā — imitācija
     return _imitacija(apraksts)
+
+
+# --- US-10: čata palīgs iedzīvotājam. Atbild tikai no BUJ; ja nezina — to pasaka. ---
+
+BUJ = [
+    ("Kā iesniegt iesniegumu?",
+     ("iesniegt", "iesniegum", "pieteikt", "ziņot", "forma", "kā rakstīt"),
+     "Atveriet sadaļu «Iesniegt iesniegumu», norādiet vārdu, e-pastu, tēmu un aprakstu, apstipriniet "
+     "piekrišanu datu apstrādei un nospiediet «Iesniegt iesniegumu». Pēc tam saņemsiet iesnieguma numuru."),
+    ("Kādi dokumenti jāpievieno?",
+     ("dokument", "pielikum", "pievienot", "fail", "foto", "attēl"),
+     "Šajā formā dokumenti nav jāpievieno — pietiek ar aprakstu. Ja izskatīšanai būs vajadzīgi dokumenti, "
+     "pašvaldības darbinieks ar jums sazināsies pa norādīto e-pastu."),
+    ("Kā uzzināt iesnieguma statusu?",
+     ("statuss", "status", "numur", "pārbaudīt", "kur ir", "kas notiek"),
+     "Atveriet sadaļu «Mans iesniegums» un ievadiet numuru, ko saņēmāt pēc iesniegšanas, piemēram, 2026-0001. "
+     "Redzēsiet statusu un atbildi, ja tā jau ir."),
+    ("Ko nozīmē statusi?",
+     ("jauns", "apstrād", "atbildēts", "noraidīt", "nozīmē"),
+     "«Jauns» — iesniegums saņemts. «Apstrādē» — darbinieks to izskata. «Atbildēts» — atbilde sagatavota. "
+     "«Noraidīts» — iesniegumu nevar izpildīt; iemesls norādīts atbildē."),
+    ("Cik ilgi jāgaida atbilde?",
+     ("cik ilgi", "termiņ", "kad", "gaidīt", "ilgi"),
+     "Pašvaldība uz iesniegumu atbild saprātīgā termiņā, parasti viena mēneša laikā. Statusu varat sekot "
+     "sadaļā «Mans iesniegums»."),
+    ("Par kādām tēmām var iesniegt?",
+     ("tēm", "par ko", "kādos jautājumos", "bedr", "latern", "atkritum", "bērnudārz", "sociāl"),
+     "Var iesniegt par ielām un ceļiem, apgaismojumu, atkritumiem un vidi, bērnudārza rindu, sociālo "
+     "palīdzību un citiem jautājumiem (tēma «Cits»)."),
+    ("Kā tiek apstrādāti mani dati?",
+     ("dati", "datu", "privāt", "e-past", "personas"),
+     "Glabājam tikai iesnieguma izskatīšanai vajadzīgos datus. E-pastu redz tikai pašvaldības darbinieks; "
+     "statusa lapā pēc numura vārds un e-pasts netiek rādīti."),
+]
+
+NEZINU = ("Uz šo jautājumu nevaru droši atbildēt. Lūdzu, sazinieties ar pašvaldību vai iesniedziet "
+          "jautājumu sadaļā «Iesniegt iesniegumu» ar tēmu «Cits».")
+
+
+def _paligs_imitacija(jautajums: str) -> dict:
+    teksts = jautajums.casefold()
+    punkti = [sum(v in teksts for v in atslegas) for _, atslegas, _ in BUJ]
+    labakais = max(range(len(BUJ)), key=lambda i: punkti[i])
+    atbilde = BUJ[labakais][2] if punkti[labakais] else NEZINU
+    return {"atbilde": atbilde, "avots": "imitācija (BUJ)"}
+
+
+def _paligs_claude(jautajums: str) -> dict:
+    import anthropic
+
+    model = os.environ.get("AI_MODEL", "claude-opus-5-5")
+    buj_teksts = "\n\n".join(f"J: {j}\nA: {a}" for j, _, a in BUJ)
+    response = anthropic.Anthropic(timeout=30.0).messages.create(
+        model=model,
+        max_tokens=1024,
+        output_config={"effort": "low"},
+        system="Tu esi pašvaldības iesniegumu sistēmas palīgs iedzīvotājiem. Atbildi latviešu valodā, "
+               "vienkāršā valodā, 1–3 teikumos, TIKAI izmantojot zemāk doto BUJ. Neizdomā dokumentus, "
+               "termiņus, likumus, kontaktus vai faktus, kuru BUJ nav. Ja BUJ atbildes nav, atbildi tieši: "
+               f"«{NEZINU}»\n\nBUJ:\n{buj_teksts}",
+        messages=[{"role": "user", "content": jautajums}],
+    )
+    if response.stop_reason != "end_turn":
+        raise ValueError(f"Negaidīts stop_reason: {response.stop_reason}")
+    atbilde = "".join(b.text for b in response.content if b.type == "text").strip()
+    if not atbilde:
+        raise ValueError("Tukša atbilde")
+    return {"atbilde": atbilde, "avots": f"Claude API ({model})"}
+
+
+def paligs(jautajums: str) -> dict:
+    """Čata palīga atbilde: {"atbilde": str, "avots": str}."""
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        try:
+            return _paligs_claude(jautajums)
+        except Exception:
+            pass  # kļūdas gadījumā — imitācija
+    return _paligs_imitacija(jautajums)

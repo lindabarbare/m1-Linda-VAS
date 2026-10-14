@@ -23,6 +23,7 @@ LOMAS = (None, "iedzivotajs", "darbinieks", "vaditajs")  # None — bez izvēlē
 
 # Stāvokļi, kurus nevar sasniegt ar saitēm: (loma, ceļš, darbība lapā). Darbības nemaina datubāzi.
 STAVOKLI = [
+    (None, "/", lambda pg: pg.get_by_role("button", name="Turpināt").click()),
     (None, "/iesniegt", lambda pg: pg.get_by_role("button", name="Iesniegt").click()),
     (None, "/mans-iesniegums?numurs=", None),
     (None, "/mans-iesniegums?numurs=2026-9999", None),
@@ -30,6 +31,7 @@ STAVOKLI = [
     ("darbinieks", "/iesniegumi/2026-0002", lambda pg: pg.get_by_role("button", name="Mainīt statusu").click()),
     ("darbinieks", "/iesniegumi/2026-0002", lambda pg: pg.get_by_role("button", name="Pievienot komentāru").click()),
     ("darbinieks", "/iesniegumi/2026-0002", lambda pg: pg.get_by_role("button", name="Saņemt MI ieteikumu").click()),
+    (None, "/", lambda pg: pg.locator(".paligs summary").click()),
 ]
 
 

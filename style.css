@@ -2,22 +2,28 @@
 :root {
   --teksts: #1a1a1a;
   --fons: #ffffff;
+  --fons-lapa: #f4f6f9;   /* lapas fons; teksts uz tā 15:1, akcents 7:1 */
   --akcents: #0b5394;
+  --akcents-tumss: #083d6e;
+  --akcents-gaiss: #e8f0f8;
   --kluda: #a4262c;
   --veiksme: #1e6b3a;
-  --mala: #767676;      /* 4.5:1 uz balta — der arī rāmjiem (≥ 3:1) */
+  --mala: #767676;        /* 4.5:1 — vadīklu rāmjiem (≥ 3:1, 1.4.11) */
+  --mala-gaisa: #c9d1db;  /* tikai dekoratīviem kartīšu rāmjiem */
   --fokuss: #ffbf00;
+  --radiuss: 8px;
+  --ena: 0 1px 3px rgba(16, 24, 40, 0.12);
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: system-ui, Arial, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   font-size: 1.0625rem;   /* 17 px */
   line-height: 1.5;
   color: var(--teksts);
-  background: var(--fons);
+  background: var(--fons-lapa);
 }
 
 /* Skip-link: paslēpts, līdz saņem fokusu */
@@ -28,9 +34,16 @@ body {
   background: var(--akcents);
   color: #fff;
   padding: 0.5rem 1rem;
-  z-index: 10;
+  z-index: 20;
 }
 .skip-link:focus { left: 0.5rem; }
+
+.vizuali-paslepts {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
 
 /* Redzams fokuss visiem elementiem (WCAG 2.4.7, 2.4.11) */
 :focus-visible {
@@ -39,22 +52,38 @@ body {
   box-shadow: 0 0 0 5px var(--teksts);
 }
 
-.site-header, .site-footer, main {
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: 1rem;
+/* Galvene: balta josla ar akcenta līniju augšā */
+.site-header { background: var(--fons); border-top: 4px solid var(--akcents); border-bottom: 1px solid var(--mala-gaisa); }
+.site-header > *, .site-footer, main { max-width: 64rem; margin: 0 auto; padding-left: 1rem; padding-right: 1rem; }
+.galvene { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem 1.5rem; padding-top: 0.75rem; padding-bottom: 0.75rem; }
+.brand { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; color: var(--teksts); text-decoration: none; font-weight: 700; font-size: 1.25rem; }
+.brand-ikona { color: var(--akcents); }
+.brand-iestade { font-weight: 400; font-size: 0.95rem; color: #595959; }
+.brand:hover span:first-of-type { text-decoration: underline; }
+.loma-josla { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; font-size: 0.95rem; }
+
+.site-header nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 0.25rem; }
+.site-header nav a {
+  display: block;
+  padding: 0.6rem 0.75rem;
+  color: var(--teksts);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
 }
-.site-header { border-bottom: 1px solid var(--mala); display: flex; flex-wrap: wrap; gap: 1rem; align-items: baseline; }
-.brand { margin: 0; font-weight: 700; font-size: 1.25rem; }
-.site-header nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
-.site-footer { border-top: 1px solid var(--mala); margin-top: 2rem; }
-.muted { color: #595959; }   /* 7:1 uz balta */
+.site-header nav a:hover { color: var(--akcents); border-bottom-color: var(--mala-gaisa); }
+.site-header nav a[aria-current="page"] { color: var(--akcents); font-weight: 700; border-bottom-color: var(--akcents); }
+
+main { padding-top: 1.5rem; padding-bottom: 2rem; }
+.site-footer { border-top: 1px solid var(--mala-gaisa); margin-top: 2rem; padding-top: 1rem; padding-bottom: 1rem; }
+.muted { color: #595959; }   /* 7:1 uz balta, 6.4:1 uz lapas fona */
 
 a { color: var(--akcents); }
 a:hover { text-decoration-thickness: 2px; }
 
-h1 { font-size: 1.75rem; line-height: 1.25; }
-h2 { font-size: 1.375rem; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0.5rem 0 1rem; }
+h2 { font-size: 1.375rem; line-height: 1.3; margin: 2rem 0 0.75rem; }
+h3 { font-size: 1.125rem; }
+.ievads { font-size: 1.1875rem; max-width: 42rem; margin-top: 0; }
 
 /* Formas: mērķa izmērs ≥ 24×24 px (2.5.8), label virs lauka */
 label { display: block; font-weight: 600; margin-top: 1rem; }
@@ -64,16 +93,23 @@ input[type="text"], input[type="email"], input[type="search"], select, textarea 
   max-width: 36rem;
   min-height: 2.75rem;
   font: inherit;
-  padding: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--fons);
   border: 2px solid var(--mala);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 textarea { min-height: 8rem; }
-fieldset { border: 1px solid var(--mala); padding: 0.75rem 1rem; margin: 1rem 0; }
-legend { font-weight: 600; }
+fieldset { border: 1px solid var(--mala); border-radius: var(--radiuss); padding: 0.75rem 1rem; margin: 1rem 0; background: var(--fons); }
+legend { font-weight: 600; padding: 0 0.25rem; }
 .radio { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
 .radio label { margin: 0; font-weight: 400; }
-input[type="radio"], input[type="checkbox"] { width: 1.5rem; height: 1.5rem; }
+input[type="radio"], input[type="checkbox"] { width: 1.5rem; height: 1.5rem; flex-shrink: 0; }
+.lauka-palidziba { margin: 0.25rem 0; font-size: 0.95rem; }
+label + .lauka-palidziba { margin-top: 0; }
+
+.forma-karte { max-width: 44rem; }
+.formas-sadala { padding: 1rem 1.25rem 1.25rem; margin: 0 0 1.25rem; border-color: var(--mala-gaisa); }
+.formas-sadala legend { font-size: 1.125rem; font-weight: 700; }
 
 button, .button {
   font: inherit;
@@ -84,19 +120,98 @@ button, .button {
   color: #fff;
   background: var(--akcents);
   border: 2px solid var(--akcents);
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
 }
-button.secondary { color: var(--akcents); background: #fff; }
+button:hover, .button:hover { background: var(--akcents-tumss); border-color: var(--akcents-tumss); }
+button.secondary { color: var(--akcents); background: var(--fons); }
+button.secondary:hover { background: var(--akcents-gaiss); }
+.poga-liela { min-height: 3rem; padding: 0.75rem 2rem; font-size: 1.125rem; }
+/* Poga, kas izskatās pēc saites (piem., «Mainīt lomu») */
+.saites-poga {
+  margin: 0; min-height: 24px; padding: 0.25rem 0.25rem;
+  color: var(--akcents); background: none; border: 0;
+  text-decoration: underline; font-weight: 600;
+}
+.saites-poga:hover { background: none; color: var(--akcents-tumss); text-decoration-thickness: 2px; }
+
+/* Kartītes */
+.karte { background: var(--fons); border: 1px solid var(--mala-gaisa); border-radius: var(--radiuss); padding: 1.25rem 1.5rem; box-shadow: var(--ena); }
+.karte h2 { margin-top: 0; }
+.divas-kolonnas { display: grid; gap: 1.25rem; margin-top: 2rem; }
+@media (min-width: 48rem) { .divas-kolonnas { grid-template-columns: 1fr 1fr; } }
+
+/* Landing: lomas izvēle ar kartītēm */
+.landing { max-width: 52rem; padding-top: 1rem; }
+.lomas-forma fieldset { border: 0; padding: 0; margin: 2rem 0 0; background: none; }
+.lomas-forma legend { font-size: 1.375rem; font-weight: 700; padding: 0; }
+.lomas-piezime { margin: 0.25rem 0 1rem; }
+.lomu-kartites { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; }
+.lomas-karte { position: relative; }
+.lomas-karte label {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  height: 100%; margin: 0; padding: 1.25rem 3rem 1.25rem 1.25rem;
+  background: var(--fons);
+  border: 2px solid var(--mala);
+  border-radius: var(--radiuss);
+  box-shadow: var(--ena);
+  cursor: pointer;
+  font-weight: 400;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.lomas-karte label::after {   /* atzīmes aplis: tukšs → ar ķeksīti (ne tikai krāsa, 1.4.1) */
+  content: "";
+  position: absolute; top: 1rem; right: 1rem;
+  width: 1.5rem; height: 1.5rem;
+  border: 2px solid var(--mala); border-radius: 50%;
+  background: var(--fons) center / 1rem no-repeat;
+}
+.lomas-karte label:hover { border-color: var(--akcents); box-shadow: 0 4px 12px rgba(11, 83, 148, 0.18); transform: translateY(-2px); }
+.lomas-karte input:checked + label { border-color: var(--akcents); background: var(--akcents-gaiss); box-shadow: 0 0 0 2px var(--akcents); }
+.lomas-karte input:checked + label::after {
+  border-color: var(--akcents);
+  background-color: var(--akcents);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.5' d='M3 8.5l3.2 3L13 4.5'/%3E%3C/svg%3E");
+}
+.lomas-karte input:focus-visible + label { outline: 3px solid var(--fokuss); outline-offset: 2px; box-shadow: 0 0 0 5px var(--teksts); }
+.lomas-karte input[aria-invalid="true"] + label { border-color: var(--kluda); }
+.lomas-ikona { color: var(--akcents); line-height: 0; }
+.lomas-nosaukums { font-size: 1.1875rem; font-weight: 700; }
+.lomas-apraksts { color: #595959; }
+
+/* Sākuma panelis */
+.hero { padding: 0.5rem 0 0.5rem; }
+.darbibu-kartites { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+.darbibas-karte {
+  display: flex; flex-direction: column; gap: 0.25rem; height: 100%;
+  padding: 1.25rem 1.5rem;
+  background: var(--fons);
+  border: 1px solid var(--mala-gaisa); border-left: 5px solid var(--akcents);
+  border-radius: var(--radiuss);
+  box-shadow: var(--ena);
+  color: var(--teksts); text-decoration: none;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.darbibas-nosaukums { color: var(--akcents); font-weight: 700; font-size: 1.125rem; text-decoration: underline; text-underline-offset: 3px; }
+.darbibas-nosaukums::after { content: " →"; }
+.darbibas-karte:hover { box-shadow: 0 4px 12px rgba(11, 83, 148, 0.18); transform: translateY(-2px); }
+.darbibas-karte:hover .darbibas-nosaukums { text-decoration-thickness: 2px; }
+
+.statistika { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.75rem; }
+.statistika li { display: flex; flex-direction: column; padding: 1rem 1.25rem; background: var(--fons); border: 1px solid var(--mala-gaisa); border-radius: var(--radiuss); }
+.statistika .skaitlis { font-size: 2rem; font-weight: 700; line-height: 1.1; color: var(--akcents); }
+.temu-saraksts, .soli { margin: 0; padding-left: 1.5rem; }
+.temu-saraksts li, .soli li { margin: 0.5rem 0; }
+.temu-saraksts .muted { float: right; margin-left: 1rem; }
 
 /* Kļūdas: teksts + ikona/rāmis, ne tikai krāsa (1.4.1, 3.3.1) */
 .kluda-teksts { color: var(--kluda); font-weight: 600; }
 [aria-invalid="true"] { border-color: var(--kluda); border-width: 3px; }
-.kludu-kopsavilkums { border: 3px solid var(--kluda); padding: 1rem; margin: 1rem 0; }
+.kludu-kopsavilkums { border: 3px solid var(--kluda); border-radius: var(--radiuss); padding: 1rem 1.25rem; margin: 1rem 0; background: var(--fons); }
 .kludu-kopsavilkums h2 { margin-top: 0; }
 
 /* Statusa paziņojumi */
-[role="status"], .pazinojums { border: 2px solid var(--veiksme); padding: 0.75rem 1rem; margin: 1rem 0; }
+[role="status"], .pazinojums { border: 2px solid var(--veiksme); border-radius: var(--radiuss); padding: 0.75rem 1rem; margin: 1rem 0; background: var(--fons); }
 
 /* Fokusētais/enkura mērķis neslēpjas zem galvenes, ja tā kļūst fiksēta (2.4.11) */
 [id] { scroll-margin-top: 5rem; }
@@ -116,8 +231,8 @@ button.secondary { color: var(--akcents); background: #fff; }
 /* Tabulas */
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
 caption { text-align: left; font-weight: 600; padding: 0.5rem 0; }
-th, td { border: 1px solid var(--mala); padding: 0.5rem; text-align: left; vertical-align: top; }
-th { background: #f0f0f0; }
+th, td { border: 1px solid var(--mala); padding: 0.5rem; text-align: left; vertical-align: top; background: var(--fons); }
+th { background: #eef1f5; }
 
 /* Statusa nozīmītes — vienmēr ar tekstu */
 .statuss { display: inline-block; padding: 0.1rem 0.5rem; border: 2px solid currentColor; border-radius: 4px; font-weight: 600; }
@@ -132,7 +247,7 @@ th { background: #f0f0f0; }
 
 /* Reflow: 320 px platumā nekas neizlec ārā (1.4.10) */
 @media (max-width: 40rem) {
-  .site-header { flex-direction: column; align-items: flex-start; }
+  h1 { font-size: 1.625rem; }
   table, thead, tbody, tr, th, td { display: block; }
   thead { position: absolute; left: -999px; }
   td::before { content: attr(data-label) ": "; font-weight: 600; }
@@ -140,4 +255,24 @@ th { background: #f0f0f0; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
+}
+
+/* US-10: čata palīgs. Platā ekrānā — stūrī; šaurā / lielā mērogā — lapas beigās (1.4.10, 2.4.11) */
+.paligs { max-width: 60rem; margin: 1rem auto; padding: 0 1rem; }
+.paligs details { border: 2px solid var(--akcents); border-radius: 4px; background: #fff; }
+.paligs summary { cursor: pointer; padding: 0.75rem 1rem; font-weight: 700; color: var(--akcents); min-height: 24px; }
+.paligs-saturs { padding: 0 1rem 1rem; }
+.paligs-zinas { list-style: none; padding: 0; margin: 0.5rem 0; max-height: 18rem; overflow-y: auto; }
+.paligs-zinas li { padding: 0.5rem; margin: 0.25rem 0; border-left: 4px solid var(--mala); }
+.paligs-zinas .paligs-mi { border-left-color: var(--akcents); background: #f7f7f7; }
+.paligs-zinas:empty { display: none; }
+.paligs-forma input { max-width: 100%; }
+.paligs-forma button, .paligs-notirit button { margin-top: 0.5rem; }
+@media (min-width: 60rem) {
+  /* Sakļauts — kompakta poga stūrī, lai mazāk aizsedz saturu; atvērts — 22rem panelis */
+  .paligs { position: fixed; right: 1rem; bottom: 1rem; width: auto; margin: 0; padding: 0; z-index: 10; }
+  .paligs details { box-shadow: var(--ena); }
+  .paligs details[open] { width: 22rem; }
+  .paligs details[open] { max-height: calc(100vh - 2rem); overflow-y: auto; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+  body { padding-bottom: 4rem; } /* lai sakļautais palīgs neaizsedz kājeni */
 }

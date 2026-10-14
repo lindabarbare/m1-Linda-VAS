@@ -1,29 +1,61 @@
 {% extends "base.html" %}
 {% block title %}Sākums{% endblock %}
 {% block content %}
-<h1>Iesniegumi novada pašvaldībai</h1>
-<p>Iesniedziet iesniegumu par ielām, apgaismojumu, atkritumiem vai citiem jautājumiem un sekojiet tā statusam.</p>
+<div class="hero">
+  <h1>Iesniegumi novada pašvaldībai</h1>
+  <p class="ievads">
+    {% if loma == 'iedzivotajs' %}Iesniedziet iesniegumu par problēmu savā apkaimē un sekojiet tā statusam.
+    {% elif loma == 'darbinieks' %}Apstrādājiet iedzīvotāju iesniegumus un sagatavojiet atbildes.
+    {% else %}Pārskatiet, cik iesniegumu saņemts un kā tie tiek apstrādāti.{% endif %}
+  </p>
+</div>
 
-<section aria-labelledby="loma-virsraksts">
-  <h2 id="loma-virsraksts">Izvēlieties lomu</h2>
-  <form method="post" action="{{ url_for('izveleties_lomu') }}">
-    <fieldset>
-      <legend>Kā vēlaties lietot sistēmu? (mācību režīms, bez pieteikšanās)</legend>
-      {% for kods, nosaukums in LOMAS.items() %}
-      <div class="radio">
-        <input type="radio" id="loma-{{ kods }}" name="loma" value="{{ kods }}" {% if loma == kods %}checked{% endif %}>
-        <label for="loma-{{ kods }}">{{ nosaukums }}</label>
-      </div>
-      {% endfor %}
-    </fieldset>
-    <button type="submit">Turpināt</button>
-  </form>
-</section>
-
-<section aria-labelledby="temas-virsraksts">
-  <h2 id="temas-virsraksts">Iesniegumu tēmas</h2>
-  <ul>
-    {% for t in temas %}<li>{{ t.nosaukums }}</li>{% endfor %}
+<section aria-labelledby="darbibas-virsraksts">
+  <h2 id="darbibas-virsraksts">Ātrās darbības</h2>
+  <ul class="darbibu-kartites">
+    {% if loma == 'iedzivotajs' %}
+    <li><a class="darbibas-karte" href="{{ url_for('iesniegt') }}"><span class="darbibas-nosaukums">Iesniegt iesniegumu</span><span class="darbibas-apraksts">Aizpildiet formu — tas aizņem dažas minūtes.</span></a></li>
+    <li><a class="darbibas-karte" href="{{ url_for('mans_iesniegums') }}"><span class="darbibas-nosaukums">Pārbaudīt iesnieguma statusu</span><span class="darbibas-apraksts">Ievadiet numuru, ko saņēmāt pēc iesniegšanas.</span></a></li>
+    {% elif loma == 'darbinieks' %}
+    <li><a class="darbibas-karte" href="{{ url_for('iesniegumu_saraksts', statuss='Jauns') }}"><span class="darbibas-nosaukums">Jaunie iesniegumi ({{ skaiti.get('Jauns', 0) }})</span><span class="darbibas-apraksts">Iesniegumi, kurus vēl neviens nav sācis apstrādāt.</span></a></li>
+    <li><a class="darbibas-karte" href="{{ url_for('iesniegumu_saraksts') }}"><span class="darbibas-nosaukums">Visi iesniegumi</span><span class="darbibas-apraksts">Meklējiet un filtrējiet pēc statusa vai tēmas.</span></a></li>
+    {% else %}
+    <li><a class="darbibas-karte" href="{{ url_for('parskats') }}"><span class="darbibas-nosaukums">Atvērt pārskatu</span><span class="darbibas-apraksts">Iesniegumi pa statusiem, tēmām un vidējais apstrādes laiks.</span></a></li>
+    {% endif %}
   </ul>
 </section>
+
+<section aria-labelledby="statistika-virsraksts">
+  <h2 id="statistika-virsraksts">Īsumā</h2>
+  <ul class="statistika">
+    <li><span class="skaitlis">{{ kopa }}</span> <span>iesniegumi kopā</span></li>
+    {% for s in statusi %}
+    <li><span class="skaitlis">{{ skaiti.get(s, 0) }}</span> <span>statusā «{{ s }}»</span></li>
+    {% endfor %}
+  </ul>
+</section>
+
+<div class="divas-kolonnas">
+  <section aria-labelledby="temas-virsraksts" class="karte">
+    <h2 id="temas-virsraksts">Biežākās tēmas</h2>
+    {% if biezakas_temas %}
+    <ol class="temu-saraksts">
+      {% for t in biezakas_temas %}
+      <li><span>{{ t.nosaukums }}</span> <span class="muted">{{ t.skaits }} iesn.</span></li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p>Iesniegumu vēl nav.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="kartiba-virsraksts" class="karte">
+    <h2 id="kartiba-virsraksts">Kā tas notiek</h2>
+    <ol class="soli">
+      <li><strong>Iesniegums</strong> — iedzīvotājs apraksta problēmu un saņem numuru.</li>
+      <li><strong>Apstrāde</strong> — darbinieks izskata iesniegumu un maina statusu.</li>
+      <li><strong>Atbilde</strong> — atbilde redzama sadaļā «Mans iesniegums».</li>
+    </ol>
+  </section>
+</div>
 {% endblock %}

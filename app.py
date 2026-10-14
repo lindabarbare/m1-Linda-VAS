@@ -2,8 +2,9 @@
 import os
 import re
 import sqlite3
-from ai import ieteikums
-from flask import Flask, abort, g, render_template, send_file, session, redirect, url_for, request
+import uuid
+from ai import ieteikums, paligs
+from flask import Flask, abort, g, jsonify, render_template, send_file, session, redirect, url_for, request
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
@@ -12,6 +13,19 @@ app = Flask(__name__, template_folder=os.path.dirname(__file__), static_folder=N
 app.secret_key = os.environ.get("SECRET_KEY", "macibu-uzdevums-nav-drosa-atslega")
 
 LOMAS = {"iedzivotajs": "Iedzīvotājs", "darbinieks": "Darbinieks", "vaditajs": "Vadītājs"}
+LOMU_APRAKSTI = {
+    "iedzivotajs": "Iesniedz iesniegumus un seko to statusam",
+    "darbinieks": "Apstrādā iesniegumus un sagatavo atbildes",
+    "vaditajs": "Skata statistiku un pārskatus",
+}
+# Galvenā izvēlne pēc lomas: (endpoint, teksts). Bez lomas — tikai «Sākums»
+NAVIGACIJA = {
+    None: [("index", "Sākums")],
+    "iedzivotajs": [("index", "Sākums"), ("iesniegt", "Iesniegt iesniegumu"),
+                    ("mans_iesniegums", "Mans iesniegums")],
+    "darbinieks": [("index", "Sākums"), ("iesniegumu_saraksts", "Iesniegumu saraksts")],
+    "vaditajs": [("index", "Sākums"), ("parskats", "Pārskats")],
+}
 STATUSI = ("Jauns", "Apstrādē", "Atbildēts", "Noraidīts")
 STATUSU_KLASES = {
     "Jauns": "statuss-jauns",
@@ -50,23 +64,54 @@ def close_db(_exc):
 
 
 def init_db():
-    """Izveido tabulas un sākumdatus, ja datubāzes vēl nav."""
-    if os.path.exists(DB_PATH):
-        return
-    with sqlite3.connect(DB_PATH) as db, open(SCHEMA_PATH, encoding="utf-8") as f:
-        db.executescript(f.read())
+    """Izveido tabulas un sākumdatus, ja datubāzes vēl nav; esošai pievieno jaunās tabulas."""
+    with open(SCHEMA_PATH, encoding="utf-8") as f:
+        schema = f.read()
+    with sqlite3.connect(DB_PATH) as db:
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name = 'iesniegumi'").fetchone():
+            # Esošā datubāzē izpilda tikai «CREATE TABLE IF NOT EXISTS» daļu (vēlāk pievienotās tabulas)
+            db.executescript(schema[schema.index("CREATE TABLE IF NOT EXISTS"):])
+        else:
+            db.executescript(schema)
 
 
 @app.context_processor
 def inject_globals():
     loma = session.get("loma")
-    return {"loma": loma, "lomas_nosaukums": LOMAS.get(loma), "LOMAS": LOMAS}
+    paligs_zinas = []
+    if session.get("paligs_saruna"):
+        paligs_zinas = get_db().execute(
+            "SELECT jautajums, atbilde FROM (SELECT id, jautajums, atbilde FROM paligs_zinas "
+            "WHERE saruna_id = ? ORDER BY id DESC LIMIT 10) ORDER BY id",
+            (session["paligs_saruna"],),
+        ).fetchall()
+    return {"loma": loma, "lomas_nosaukums": LOMAS.get(loma), "LOMAS": LOMAS,
+            "navigacija": NAVIGACIJA.get(loma, NAVIGACIJA[None]),
+            "paligs_zinas": paligs_zinas, "paligs_atverts": session.pop("paligs_atverts", False)}
+
+
+def aizstat_personas_datus(teksts):
+    """Pirms saglabāšanas žurnālā aizstāj e-pastus un garas ciparu virknes (tālrunis, personas kods)."""
+    teksts = re.sub(r"[^@\s,;]+@[^@\s,;]+", "[dzēsts]", teksts)
+    # Iesnieguma numuru (2026-0001) atstāj, lai palīgs varētu par to runāt
+    return re.sub(r"\b(?!\d{4}-\d{4}\b)(?:\d[\s-]?){8,}", "[dzēsts]", teksts)
 
 
 @app.route("/")
 def index():
-    temas = get_db().execute("SELECT id, nosaukums FROM temas ORDER BY nosaukums").fetchall()
-    return render_template("index.html", temas=temas)
+    if session.get("loma") not in LOMAS:
+        # Landing lapa: vienīgais uzdevums — izvēlēties lomu
+        return render_template("landing.html", lomu_apraksti=LOMU_APRAKSTI, errors={})
+    db = get_db()
+    skaiti = dict(db.execute("SELECT statuss, COUNT(*) FROM iesniegumi GROUP BY statuss").fetchall())
+    biezakas_temas = db.execute(
+        "SELECT t.nosaukums, COUNT(*) AS skaits FROM iesniegumi i JOIN temas t ON t.id = i.temas_id "
+        "GROUP BY t.id ORDER BY skaits DESC, t.nosaukums LIMIT 3"
+    ).fetchall()
+    return render_template(
+        "index.html", skaiti=skaiti, kopa=sum(skaiti.values()), statusi=STATUSI,
+        biezakas_temas=biezakas_temas,
+    )
 
 
 @app.route("/iesniegt", methods=["GET", "POST"])
@@ -93,10 +138,6 @@ def iesniegt():
             "piekritu": request.form.get("piekritu") == "1",
         })
 
-        if not values["vards"]:
-            errors["vards"] = "Ievadiet vārdu."
-        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", values["epasts"]):
-            errors["epasts"] = "Ievadiet derīgu e-pasta adresi."
         try:
             temas_id = int(values["temas_id"])
             tema = db.execute("SELECT id FROM temas WHERE id = ?", (temas_id,)).fetchone()
@@ -106,6 +147,10 @@ def iesniegt():
             errors["temas_id"] = "Izvēlieties tēmu no saraksta."
         if not values["apraksts"]:
             errors["apraksts"] = "Ievadiet iesnieguma aprakstu."
+        if not values["vards"]:
+            errors["vards"] = "Ievadiet vārdu."
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", values["epasts"]):
+            errors["epasts"] = "Ievadiet derīgu e-pasta adresi."
         if request.form.get("piekritu") != "1":
             errors["piekritu"] = "Lai iesniegtu iesniegumu, apstipriniet piekrišanu datu apstrādei."
 
@@ -364,11 +409,57 @@ def style():
     return send_file(os.path.join(os.path.dirname(__file__), "style.css"), mimetype="text/css")
 
 
+@app.post("/paligs")
+def paligs_jautajums():
+    atpakal = request.form.get("atpakal", "/")
+    if not atpakal.startswith("/") or atpakal.startswith("//"):
+        atpakal = "/"
+    gaida_json = request.headers.get("Accept", "").startswith("application/json")
+
+    if request.form.get("darbiba") == "notirit":
+        session.pop("paligs_saruna", None)
+        if gaida_json:
+            return jsonify(ok=True)
+        session["paligs_atverts"] = True
+        return redirect(atpakal + "#paligs")
+
+    jautajums = request.form.get("jautajums", "").strip()[:500]
+    if not jautajums:
+        if gaida_json:
+            return jsonify(kluda="Ierakstiet jautājumu."), 400
+        session["paligs_atverts"] = True
+        return redirect(atpakal + "#paligs-jautajums")
+
+    atbilde = paligs(jautajums)
+    saruna_id = session.setdefault("paligs_saruna", uuid.uuid4().hex)
+    db = get_db()
+    db.execute(
+        "INSERT INTO paligs_zinas (saruna_id, loma, jautajums, atbilde, avots) VALUES (?, ?, ?, ?, ?)",
+        (saruna_id, session.get("loma"), aizstat_personas_datus(jautajums),
+         atbilde["atbilde"], atbilde["avots"]),
+    )
+    db.commit()
+    if gaida_json:
+        return jsonify(jautajums=jautajums, atbilde=atbilde["atbilde"])
+    session["paligs_atverts"] = True
+    return redirect(atpakal + "#paligs-zinas")
+
+
+@app.route("/static/paligs.js")
+def paligs_js():
+    return send_file(os.path.join(os.path.dirname(__file__), "paligs.js"), mimetype="text/javascript")
+
+
 @app.post("/loma")
 def izveleties_lomu():
+    if request.form.get("darbiba") == "mainit":
+        session.pop("loma", None)
+        return redirect(url_for("index"))
     loma = request.form.get("loma")
-    if loma in LOMAS:
-        session["loma"] = loma
+    if loma not in LOMAS:
+        errors = {"loma": "Izvēlieties lomu, lai turpinātu."}
+        return render_template("landing.html", lomu_apraksti=LOMU_APRAKSTI, errors=errors), 400
+    session["loma"] = loma
     return redirect(url_for("index"))
 
 

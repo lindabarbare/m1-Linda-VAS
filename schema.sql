@@ -56,3 +56,14 @@ INSERT INTO notikumi (iesnieguma_id, veids, loma, teksts) VALUES
  (1, 'statuss', 'sistema',    'Iesniegums reģistrēts ar statusu «Jauns».'),
  (2, 'statuss', 'darbinieks', 'Statuss mainīts uz «Apstrādē».'),
  (3, 'atbilde', 'darbinieks', 'Konteiners iztukšots 03.10. Paldies par ziņojumu.');
+
+-- US-10: čata palīga sarunas (sesijā glabā tikai saruna_id). Personas dati maskēti pirms saglabāšanas.
+CREATE TABLE IF NOT EXISTS paligs_zinas (
+    id         INTEGER PRIMARY KEY,
+    saruna_id  TEXT NOT NULL,
+    laiks      TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    loma       TEXT,
+    jautajums  TEXT NOT NULL,
+    atbilde    TEXT NOT NULL,
+    avots      TEXT NOT NULL
+);

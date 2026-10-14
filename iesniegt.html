@@ -2,7 +2,7 @@
 {% block title %}{% if errors %}Kļūda: {% endif %}Iesniegt iesniegumu{% endblock %}
 {% block content %}
 <h1>Iesniegt iesniegumu</h1>
-<p>Atzīmētiem laukiem jābūt aizpildītiem. Adrese vai vieta nav obligāta.</p>
+<p class="ievads">Aprakstiet problēmu — pašvaldības darbinieks to izskatīs, un jūs saņemsiet iesnieguma numuru statusa pārbaudei. Lauki ar norādi «(obligāts)» jāaizpilda.</p>
 
 {% if errors %}
 <div id="kludu-kopsavilkums" class="kludu-kopsavilkums" role="alert" tabindex="-1" autofocus>
@@ -15,33 +15,41 @@
 </div>
 {% endif %}
 
-<form method="post" action="{{ url_for('iesniegt') }}" novalidate>
-  <label for="vards">Vārds (obligāts)</label>
-  <input type="text" id="vards" name="vards" autocomplete="name" required value="{{ values.vards }}"{% if errors.get('vards') %} aria-invalid="true" aria-describedby="vards-kluda"{% endif %}>
-  {% if errors.get('vards') %}<p class="kluda-teksts" id="vards-kluda">{{ errors.vards }}</p>{% endif %}
+<form method="post" action="{{ url_for('iesniegt') }}" class="forma-karte" novalidate>
+  <fieldset class="formas-sadala">
+    <legend>1. Par problēmu</legend>
+    <label for="temas_id">Kategorija (obligāts)</label>
+    <select id="temas_id" name="temas_id" required{% if errors.get('temas_id') %} aria-invalid="true" aria-describedby="temas-kluda"{% endif %}>
+      <option value="">Izvēlieties kategoriju</option>
+      {% for tema in temas %}
+      <option value="{{ tema.id }}"{% if values.temas_id == tema.id|string %} selected{% endif %}>{{ tema.nosaukums }}</option>
+      {% endfor %}
+    </select>
+    {% if errors.get('temas_id') %}<p class="kluda-teksts" id="temas-kluda">{{ errors.temas_id }}</p>{% endif %}
 
-  <label for="epasts">E-pasts (obligāts)</label>
-  <input type="email" id="epasts" name="epasts" autocomplete="email" required value="{{ values.epasts }}"{% if errors.get('epasts') %} aria-invalid="true" aria-describedby="epasts-kluda"{% endif %}>
-  {% if errors.get('epasts') %}<p class="kluda-teksts" id="epasts-kluda">{{ errors.epasts }}</p>{% endif %}
+    <label for="apraksts">Apraksts (obligāts)</label>
+    <p class="muted lauka-palidziba" id="apraksts-palidziba">Kas noticis, kopš kura laika, vai ir bīstami.</p>
+    <textarea id="apraksts" name="apraksts" required aria-describedby="apraksts-palidziba{% if errors.get('apraksts') %} apraksts-kluda{% endif %}"{% if errors.get('apraksts') %} aria-invalid="true"{% endif %}>{{ values.apraksts }}</textarea>
+    {% if errors.get('apraksts') %}<p class="kluda-teksts" id="apraksts-kluda">{{ errors.apraksts }}</p>{% endif %}
 
-  <label for="temas_id">Tēma (obligāts)</label>
-  <select id="temas_id" name="temas_id" required{% if errors.get('temas_id') %} aria-invalid="true" aria-describedby="temas-kluda"{% endif %}>
-    <option value="">Izvēlieties tēmu</option>
-    {% for tema in temas %}
-    <option value="{{ tema.id }}"{% if values.temas_id == tema.id|string %} selected{% endif %}>{{ tema.nosaukums }}</option>
-    {% endfor %}
-  </select>
-  {% if errors.get('temas_id') %}<p class="kluda-teksts" id="temas-kluda">{{ errors.temas_id }}</p>{% endif %}
+    <label for="adrese">Adrese vai vieta (neobligāts)</label>
+    <input type="text" id="adrese" name="adrese" autocomplete="street-address" value="{{ values.adrese }}">
+  </fieldset>
 
-  <label for="adrese">Adrese/vieta (neobligāts)</label>
-  <input type="text" id="adrese" name="adrese" autocomplete="street-address" value="{{ values.adrese }}">
+  <fieldset class="formas-sadala">
+    <legend>2. Jūsu kontaktinformācija</legend>
+    <p class="muted lauka-palidziba">E-pastu redz tikai pašvaldības darbinieks.</p>
+    <label for="vards">Vārds (obligāts)</label>
+    <input type="text" id="vards" name="vards" autocomplete="name" required value="{{ values.vards }}"{% if errors.get('vards') %} aria-invalid="true" aria-describedby="vards-kluda"{% endif %}>
+    {% if errors.get('vards') %}<p class="kluda-teksts" id="vards-kluda">{{ errors.vards }}</p>{% endif %}
 
-  <label for="apraksts">Apraksts (obligāts)</label>
-  <textarea id="apraksts" name="apraksts" required{% if errors.get('apraksts') %} aria-invalid="true" aria-describedby="apraksts-kluda"{% endif %}>{{ values.apraksts }}</textarea>
-  {% if errors.get('apraksts') %}<p class="kluda-teksts" id="apraksts-kluda">{{ errors.apraksts }}</p>{% endif %}
+    <label for="epasts">E-pasts (obligāts)</label>
+    <input type="email" id="epasts" name="epasts" autocomplete="email" required value="{{ values.epasts }}"{% if errors.get('epasts') %} aria-invalid="true" aria-describedby="epasts-kluda"{% endif %}>
+    {% if errors.get('epasts') %}<p class="kluda-teksts" id="epasts-kluda">{{ errors.epasts }}</p>{% endif %}
+  </fieldset>
 
-  <fieldset>
-    <legend>Datu apstrāde</legend>
+  <fieldset class="formas-sadala">
+    <legend>3. Datu apstrāde</legend>
     <div class="radio">
       <input type="checkbox" id="piekritu" name="piekritu" value="1" required{% if values.piekritu %} checked{% endif %}{% if errors.get('piekritu') %} aria-invalid="true" aria-describedby="piekritu-kluda"{% endif %}>
       <label for="piekritu">Piekrītu savu datu apstrādei šī iesnieguma izskatīšanai (obligāts)</label>
@@ -49,6 +57,6 @@
     {% if errors.get('piekritu') %}<p class="kluda-teksts" id="piekritu-kluda">{{ errors.piekritu }}</p>{% endif %}
   </fieldset>
 
-  <button type="submit">Iesniegt iesniegumu</button>
+  <button type="submit" class="poga-liela">Iesniegt iesniegumu</button>
 </form>
 {% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{% if errors %}Kļūda: {% endif %}Sākums{% endblock %}
+{% block content %}
+<div class="landing">
+  <h1>Iesniegumi novada pašvaldībai</h1>
+  <p class="ievads">Ziņojiet par bedrēm, apgaismojumu, atkritumiem un citiem jautājumiem un sekojiet, kā pašvaldība tos risina.</p>
+
+  {% if errors %}
+  <div id="kludu-kopsavilkums" class="kludu-kopsavilkums" role="alert" tabindex="-1" autofocus>
+    <h2>Lūdzu, izvēlieties lomu</h2>
+    <ul>
+      {% for field, message in errors.items() %}
+      <li><a href="#loma-iedzivotajs">{{ message }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('izveleties_lomu') }}" class="lomas-forma" novalidate>
+    <fieldset id="loma"{% if errors.get('loma') %} aria-describedby="loma-kluda"{% endif %}>
+      <legend>Kā vēlaties lietot sistēmu? (obligāts)</legend>
+      <p class="muted lomas-piezime">Mācību režīms — pieteikšanās nav vajadzīga.</p>
+      <div class="lomu-kartites">
+        {% for kods, nosaukums in LOMAS.items() %}
+        <div class="lomas-karte">
+          <input type="radio" class="vizuali-paslepts" id="loma-{{ kods }}" name="loma" value="{{ kods }}" required{% if errors.get('loma') %} aria-invalid="true"{% endif %}>
+          <label for="loma-{{ kods }}">
+            <span class="lomas-ikona" aria-hidden="true">
+              {% if kods == 'iedzivotajs' %}
+              <svg viewBox="0 0 24 24" width="32" height="32" focusable="false"><path fill="currentColor" d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zm0 2c-4.4 0-8 2.2-8 5v2h16v-2c0-2.8-3.6-5-8-5z"/></svg>
+              {% elif kods == 'darbinieks' %}
+              <svg viewBox="0 0 24 24" width="32" height="32" focusable="false"><path fill="currentColor" d="M9 3h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 4h6V5H9v2zm-5 4v3h16v-3H4z"/></svg>
+              {% else %}
+              <svg viewBox="0 0 24 24" width="32" height="32" focusable="false"><path fill="currentColor" d="M3 3h2v16h16v2H3V3zm4 9h3v6H7v-6zm5-5h3v11h-3V7zm5 3h3v8h-3v-8z"/></svg>
+              {% endif %}
+            </span>
+            <span class="lomas-nosaukums">{{ nosaukums }}</span>
+            <span class="lomas-apraksts">{{ lomu_apraksti[kods] }}</span>
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+      {% if errors.get('loma') %}<p class="kluda-teksts" id="loma-kluda">{{ errors.loma }}</p>{% endif %}
+    </fieldset>
+    <button type="submit" class="poga-liela">Turpināt</button>
+  </form>
+</div>
+{% endblock %}
