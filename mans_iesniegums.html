@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{% if errors %}Kļūda: {% endif %}Mans iesniegums{% endblock %}
+{% block content %}
+<h1>Mans iesniegums</h1>
+<p>Ievadiet numuru, ko saņēmāt pēc iesnieguma iesniegšanas, lai uzzinātu tā statusu.</p>
+
+{% if errors %}
+<div id="kludu-kopsavilkums" class="kludu-kopsavilkums" role="alert" tabindex="-1" autofocus>
+  <h2>Statusu neizdevās pārbaudīt</h2>
+  <ul>
+    {% for field, message in errors.items() %}
+    <li><a href="#{{ field }}">{{ message }}</a></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="get" action="{{ url_for('mans_iesniegums') }}" novalidate>
+  <label for="numurs">Iesnieguma numurs (obligāts)</label>
+  <p class="muted" id="numurs-palidziba">Formāts: gads-numurs, piemēram, 2026-0001.</p>
+  <input type="text" id="numurs" name="numurs" required autocomplete="off" spellcheck="false" value="{{ numurs }}"
+         aria-describedby="numurs-palidziba{% if errors.get('numurs') %} numurs-kluda{% endif %}"{% if errors.get('numurs') %} aria-invalid="true"{% endif %}>
+  {% if errors.get('numurs') %}<p class="kluda-teksts" id="numurs-kluda">{{ errors.numurs }}</p>{% endif %}
+  <button type="submit">Pārbaudīt statusu</button>
+</form>
+
+{% if iesniegums %}
+<h2>Iesniegums {{ iesniegums.numurs }}</h2>
+<dl>
+  <dt>Statuss</dt>
+  <dd><span class="statuss {{ statusu_klase }}">{{ iesniegums.statuss }}</span></dd>
+  <dt>Tēma</dt>
+  <dd>{{ iesniegums.tema }}</dd>
+  <dt>Iesniegts</dt>
+  <dd><time datetime="{{ iesniegums.izveidots|replace(' ', 'T') }}">{{ iesniegums.izveidots }}</time></dd>
+  <dt>Pēdējais notikums</dt>
+  <dd>
+    {% if pedejais %}
+    <time datetime="{{ pedejais.laiks|replace(' ', 'T') }}">{{ pedejais.laiks }}</time> · {{ pedejais.teksts }}
+    {% else %}
+    Ziņu par statusa izmaiņām vēl nav.
+    {% endif %}
+  </dd>
+</dl>
+
+<h3>Atbilde</h3>
+{% if iesniegums.atbilde and iesniegums.statuss in ('Atbildēts', 'Noraidīts') %}
+<p>{{ iesniegums.atbilde }}</p>
+{% else %}
+<p>Atbilde vēl nav sagatavota.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -145,6 +145,44 @@ def apstiprinajums():
     return render_template("apstiprinajums.html", numurs=numurs)
 
 
+@app.route("/mans-iesniegums")
+def mans_iesniegums():
+    numurs = request.args.get("numurs", "").strip()[:20]
+    errors = {}
+    iesniegums = None
+    pedejais = None
+    status_code = 200
+
+    if "numurs" in request.args:
+        if not numurs:
+            errors["numurs"] = "Ievadiet iesnieguma numuru, piemēram, 2026-0001."
+            status_code = 400
+        else:
+            db = get_db()
+            # Iedzīvotājam nerāda vārdu, e-pastu un aprakstu
+            iesniegums = db.execute(
+                "SELECT i.id, i.numurs, i.izveidots, i.statuss, i.atbilde, t.nosaukums AS tema "
+                "FROM iesniegumi i JOIN temas t ON t.id = i.temas_id WHERE i.numurs = ?",
+                (numurs,),
+            ).fetchone()
+            if iesniegums is None:
+                errors["numurs"] = f"Iesniegums ar numuru «{numurs}» nav atrasts. Pārbaudiet numuru, piemēram, 2026-0001."
+                status_code = 404
+            else:
+                # Rāda tikai statusa maiņas; komentāri, atbilžu melnraksti un MI ieraksti ir iekšēji
+                pedejais = db.execute(
+                    "SELECT laiks, teksts FROM notikumi WHERE iesnieguma_id = ? AND veids = 'statuss' "
+                    "ORDER BY laiks DESC, id DESC LIMIT 1",
+                    (iesniegums["id"],),
+                ).fetchone()
+
+    return render_template(
+        "mans_iesniegums.html", numurs=numurs, errors=errors, iesniegums=iesniegums,
+        pedejais=pedejais,
+        statusu_klase=STATUSU_KLASES.get(iesniegums["statuss"]) if iesniegums else None,
+    ), status_code
+
+
 @app.route("/iesniegumi")
 def iesniegumu_saraksts():
     if session.get("loma") != "darbinieks":

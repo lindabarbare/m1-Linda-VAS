@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Iesniegt iesniegumu{% endblock %}
+{% block title %}{% if errors %}Kļūda: {% endif %}Iesniegt iesniegumu{% endblock %}
 {% block content %}
 <h1>Iesniegt iesniegumu</h1>
 <p>Atzīmētiem laukiem jābūt aizpildītiem. Adrese vai vieta nav obligāta.</p>
