@@ -272,6 +272,33 @@ def iesnieguma_detalas(numurs):
     ), 400 if errors else 200
 
 
+@app.route("/parskats")
+def parskats():
+    if session.get("loma") != "vaditajs":
+        return redirect(url_for("index"))
+    db = get_db()
+    skaiti = dict(db.execute("SELECT statuss, COUNT(*) FROM iesniegumi GROUP BY statuss").fetchall())
+    pa_statusiem = [{"statuss": s, "skaits": skaiti.get(s, 0)} for s in STATUSI]
+    pa_temam = db.execute(
+        "SELECT t.nosaukums, COUNT(i.id) AS skaits FROM temas t "
+        "LEFT JOIN iesniegumi i ON i.temas_id = t.id GROUP BY t.id ORDER BY t.nosaukums"
+    ).fetchall()
+    # Apstrādes laiks: no reģistrācijas līdz pēdējai statusa maiņai slēgtiem iesniegumiem
+    # (ja statusa notikuma nav, izmanto lauku «atjaunots»)
+    apstrade = db.execute(
+        "SELECT AVG(julianday(COALESCE("
+        "(SELECT MAX(n.laiks) FROM notikumi n WHERE n.iesnieguma_id = i.id AND n.veids = 'statuss'), "
+        "i.atjaunots)) - julianday(i.izveidots)), COUNT(*) "
+        "FROM iesniegumi i WHERE i.statuss IN ('Atbildēts', 'Noraidīts')"
+    ).fetchone()
+    videjais_dienas = None if apstrade[0] is None else f"{apstrade[0]:.1f}".replace(".", ",")
+    return render_template(
+        "parskats.html", pa_statusiem=pa_statusiem, pa_temam=pa_temam,
+        kopa=sum(skaiti.values()), max_skaits=max(skaiti.values(), default=0),
+        videjais_dienas=videjais_dienas, slegti=apstrade[1], statusu_klases=STATUSU_KLASES,
+    )
+
+
 @app.route("/static/style.css")
 def style():
     return send_file(os.path.join(os.path.dirname(__file__), "style.css"), mimetype="text/css")

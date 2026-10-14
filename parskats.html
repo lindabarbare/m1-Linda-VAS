@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Pārskats{% endblock %}
+{% block content %}
+<h1>Pārskats</h1>
+<p>Iesniegumu kopskaits: {{ kopa }}.</p>
+
+<h2>Vidējais apstrādes laiks</h2>
+{% if videjais_dienas %}
+<p>Slēgtie iesniegumi (statuss «Atbildēts» vai «Noraidīts»): {{ slegti }}. Vidējais laiks no reģistrācijas līdz slēgšanai: <strong>{{ videjais_dienas }} dienas</strong>.</p>
+{% else %}
+<p>Vēl nav neviena slēgta iesnieguma, tāpēc vidējo apstrādes laiku nevar aprēķināt.</p>
+{% endif %}
+
+<h2>Iesniegumi pa statusiem</h2>
+<figure class="diagramma">
+  <figcaption>Joslu diagramma: iesniegumu skaits pa statusiem (tie paši dati ir tabulā zemāk)</figcaption>
+  <ul>
+    {% for r in pa_statusiem %}
+    <li>
+      <span>{{ r.statuss }}</span>
+      <span class="josla-fons" aria-hidden="true"><span class="josla" style="width: {{ (100 * r.skaits / max_skaits)|round|int if max_skaits else 0 }}%"></span></span>
+      <span>{{ r.skaits }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</figure>
+
+<table>
+  <caption>Iesniegumu skaits pa statusiem</caption>
+  <thead>
+    <tr><th scope="col">Statuss</th><th scope="col">Skaits</th></tr>
+  </thead>
+  <tbody>
+    {% for r in pa_statusiem %}
+    <tr>
+      <th scope="row"><span class="statuss {{ statusu_klases[r.statuss] }}">{{ r.statuss }}</span></th>
+      <td data-label="Skaits">{{ r.skaits }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Iesniegumi pa tēmām</h2>
+<table>
+  <caption>Iesniegumu skaits pa tēmām</caption>
+  <thead>
+    <tr><th scope="col">Tēma</th><th scope="col">Skaits</th></tr>
+  </thead>
+  <tbody>
+    {% for r in pa_temam %}
+    <tr>
+      <th scope="row">{{ r.nosaukums }}</th>
+      <td data-label="Skaits">{{ r.skaits }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

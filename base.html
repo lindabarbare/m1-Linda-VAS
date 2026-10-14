@@ -16,6 +16,7 @@
         <li><a href="{{ url_for('index') }}">Sākums</a></li>
         <li><a href="{{ url_for('iesniegt') }}">Iesniegt iesniegumu</a></li>
         {% if loma == 'darbinieks' %}<li><a href="{{ url_for('iesniegumu_saraksts') }}">Iesniegumu saraksts</a></li>{% endif %}
+        {% if loma == 'vaditajs' %}<li><a href="{{ url_for('parskats') }}">Pārskats</a></li>{% endif %}
         {# Pievienojiet saites, kad ekrāni ir gatavi: Iesniegt, Mans iesniegums, Saraksts, Pārskats #}
       </ul>
     </nav>
