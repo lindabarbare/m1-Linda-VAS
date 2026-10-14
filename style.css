@@ -98,6 +98,13 @@ button.secondary { color: var(--akcents); background: #fff; }
 /* Statusa paziņojumi */
 [role="status"], .pazinojums { border: 2px solid var(--veiksme); padding: 0.75rem 1rem; margin: 1rem 0; }
 
+/* Fokusētais/enkura mērķis neslēpjas zem galvenes, ja tā kļūst fiksēta (2.4.11) */
+[id] { scroll-margin-top: 5rem; }
+
+/* Iesnieguma vēsture */
+.vesture { padding-left: 1.5rem; }
+.vesture li { margin: 0.5rem 0; }
+
 /* Tabulas */
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
 caption { text-align: left; font-weight: 600; padding: 0.5rem 0; }

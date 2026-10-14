@@ -2,7 +2,7 @@
 import os
 import re
 import sqlite3
-from flask import Flask, g, render_template, send_file, session, redirect, url_for, request
+from flask import Flask, abort, g, render_template, send_file, session, redirect, url_for, request
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
@@ -11,12 +11,33 @@ app = Flask(__name__, template_folder=os.path.dirname(__file__), static_folder=N
 app.secret_key = os.environ.get("SECRET_KEY", "macibu-uzdevums-nav-drosa-atslega")
 
 LOMAS = {"iedzivotajs": "Iedzīvotājs", "darbinieks": "Darbinieks", "vaditajs": "Vadītājs"}
+STATUSI = ("Jauns", "Apstrādē", "Atbildēts", "Noraidīts")
+STATUSU_KLASES = {
+    "Jauns": "statuss-jauns",
+    "Apstrādē": "statuss-apstrade",
+    "Atbildēts": "statuss-atbildets",
+    "Noraidīts": "statuss-noraidits",
+}
+# Atļautās statusa pārejas: Jauns → Apstrādē → Atbildēts / Noraidīts
+STATUSU_PAREJAS = {
+    "Jauns": ("Apstrādē",),
+    "Apstrādē": ("Atbildēts", "Noraidīts"),
+    "Atbildēts": (),
+    "Noraidīts": (),
+}
+NOTIKUMU_VEIDI = {
+    "statuss": "Statusa maiņa",
+    "komentars": "Komentārs",
+    "atbilde": "Atbilde",
+    "mi_ieteikums": "MI ieteikums",
+}
 
 
 def get_db():
     if "db" not in g:
         g.db = sqlite3.connect(DB_PATH)
         g.db.row_factory = sqlite3.Row
+        g.db.create_function("casefold", 1, lambda value: value.casefold() if value else "")
     return g.db
 
 
@@ -121,6 +142,134 @@ def apstiprinajums():
     if not numurs:
         return redirect(url_for("iesniegt"))
     return render_template("apstiprinajums.html", numurs=numurs)
+
+
+@app.route("/iesniegumi")
+def iesniegumu_saraksts():
+    if session.get("loma") != "darbinieks":
+        return redirect(url_for("index"))
+
+    db = get_db()
+    temas = db.execute("SELECT id, nosaukums FROM temas ORDER BY nosaukums").fetchall()
+    status = request.args.get("statuss", "")
+    if status not in STATUSI:
+        status = ""
+    tema_id = request.args.get("temas_id", "")
+    if not any(str(tema["id"]) == tema_id for tema in temas):
+        tema_id = ""
+    meklet = request.args.get("meklet", "").strip()[:100]
+
+    nosacijumi = []
+    parametri = []
+    if status:
+        nosacijumi.append("i.statuss = ?")
+        parametri.append(status)
+    if tema_id:
+        nosacijumi.append("i.temas_id = ?")
+        parametri.append(int(tema_id))
+    if meklet:
+        nosacijumi.append(
+            "(casefold(i.numurs) LIKE casefold(?) OR casefold(t.nosaukums) LIKE casefold(?) "
+            "OR casefold(i.vards) LIKE casefold(?) OR casefold(i.adrese) LIKE casefold(?) "
+            "OR casefold(i.apraksts) LIKE casefold(?))"
+        )
+        parametri.extend([f"%{meklet}%"] * 5)
+
+    where = f"WHERE {' AND '.join(nosacijumi)}" if nosacijumi else ""
+    iesniegumi = db.execute(
+        "SELECT i.id, i.numurs, i.izveidots, t.nosaukums AS tema, i.vards, i.statuss "
+        "FROM iesniegumi i JOIN temas t ON t.id = i.temas_id "
+        f"{where} ORDER BY i.izveidots DESC, i.id DESC",
+        parametri,
+    ).fetchall()
+    return render_template(
+        "iesniegumu_saraksts.html", iesniegumi=iesniegumi, temas=temas,
+        statusi=STATUSI, status=status, tema_id=tema_id, meklet=meklet,
+        statusu_klases=STATUSU_KLASES,
+    )
+
+
+@app.route("/iesniegumi/<numurs>", methods=["GET", "POST"])
+def iesnieguma_detalas(numurs):
+    if session.get("loma") != "darbinieks":
+        return redirect(url_for("index"))
+    db = get_db()
+    iesniegums = db.execute(
+        "SELECT i.id, i.numurs, i.izveidots, i.vards, i.epasts, i.adrese, i.apraksts, i.statuss, "
+        "i.atbilde, t.nosaukums AS tema FROM iesniegumi i JOIN temas t ON t.id = i.temas_id "
+        "WHERE i.numurs = ?",
+        (numurs,),
+    ).fetchone()
+    if iesniegums is None:
+        abort(404)
+
+    atlautie_statusi = STATUSU_PAREJAS[iesniegums["statuss"]]
+    values = {"jauns_statuss": "", "komentars": "", "atbilde": iesniegums["atbilde"] or ""}
+    errors = {}
+
+    if request.method == "POST":
+        darbiba = request.form.get("darbiba")
+        pazinojums = None
+
+        if darbiba == "statuss":
+            values["jauns_statuss"] = request.form.get("jauns_statuss", "")
+            if values["jauns_statuss"] not in atlautie_statusi:
+                errors["jauns_statuss"] = "Izvēlieties jauno statusu no saraksta."
+            elif values["jauns_statuss"] == "Atbildēts" and not iesniegums["atbilde"]:
+                errors["jauns_statuss"] = "Pirms statusa «Atbildēts» saglabājiet atbildes tekstu."
+            else:
+                db.execute(
+                    "UPDATE iesniegumi SET statuss = ?, atjaunots = datetime('now', 'localtime') WHERE id = ?",
+                    (values["jauns_statuss"], iesniegums["id"]),
+                )
+                teksts = f"Statuss mainīts no «{iesniegums['statuss']}» uz «{values['jauns_statuss']}»."
+                db.execute(
+                    "INSERT INTO notikumi (iesnieguma_id, veids, loma, teksts) VALUES (?, 'statuss', ?, ?)",
+                    (iesniegums["id"], session["loma"], teksts),
+                )
+                pazinojums = teksts
+        elif darbiba == "komentars":
+            values["komentars"] = request.form.get("komentars", "").strip()
+            if not values["komentars"]:
+                errors["komentars"] = "Ievadiet komentāra tekstu."
+            else:
+                db.execute(
+                    "INSERT INTO notikumi (iesnieguma_id, veids, loma, teksts) VALUES (?, 'komentars', ?, ?)",
+                    (iesniegums["id"], session["loma"], values["komentars"]),
+                )
+                pazinojums = "Komentārs pievienots."
+        elif darbiba == "atbilde":
+            values["atbilde"] = request.form.get("atbilde", "").strip()
+            if not values["atbilde"]:
+                errors["atbilde"] = "Ievadiet atbildes tekstu."
+            else:
+                db.execute(
+                    "UPDATE iesniegumi SET atbilde = ?, atjaunots = datetime('now', 'localtime') WHERE id = ?",
+                    (values["atbilde"], iesniegums["id"]),
+                )
+                db.execute(
+                    "INSERT INTO notikumi (iesnieguma_id, veids, loma, teksts) VALUES (?, 'atbilde', ?, ?)",
+                    (iesniegums["id"], session["loma"], values["atbilde"]),
+                )
+                pazinojums = "Atbilde saglabāta."
+        else:
+            abort(400)
+
+        if pazinojums:
+            db.commit()
+            session["pazinojums"] = pazinojums
+            return redirect(url_for("iesnieguma_detalas", numurs=numurs, _anchor="pazinojums"))
+
+    notikumi = db.execute(
+        "SELECT laiks, veids, loma, teksts FROM notikumi WHERE iesnieguma_id = ? ORDER BY laiks, id",
+        (iesniegums["id"],),
+    ).fetchall()
+    return render_template(
+        "iesnieguma_detalas.html", iesniegums=iesniegums, notikumi=notikumi,
+        statusu_klase=STATUSU_KLASES[iesniegums["statuss"]], atlautie_statusi=atlautie_statusi,
+        values=values, errors=errors, pazinojums=session.pop("pazinojums", None),
+        notikumu_veidi=NOTIKUMU_VEIDI, lomu_nosaukumi={**LOMAS, "sistema": "Sistēma"},
+    ), 400 if errors else 200
 
 
 @app.route("/static/style.css")

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Iesniegumu saraksts{% endblock %}
+{% block content %}
+<h1>Iesniegumu saraksts</h1>
+
+<form method="get" action="{{ url_for('iesniegumu_saraksts') }}">
+  <fieldset>
+    <legend>Meklēšana un filtri</legend>
+    <label for="meklet">Meklēt pēc numura, tēmas, iesniedzēja, adreses vai apraksta</label>
+    <input type="search" id="meklet" name="meklet" value="{{ meklet }}">
+
+    <label for="statuss">Statuss</label>
+    <select id="statuss" name="statuss">
+      <option value="">Visi statusi</option>
+      {% for statuss in statusi %}
+      <option value="{{ statuss }}"{% if status == statuss %} selected{% endif %}>{{ statuss }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="temas_id">Tēma</label>
+    <select id="temas_id" name="temas_id">
+      <option value="">Visas tēmas</option>
+      {% for tema in temas %}
+      <option value="{{ tema.id }}"{% if tema_id == tema.id|string %} selected{% endif %}>{{ tema.nosaukums }}</option>
+      {% endfor %}
+    </select>
+  </fieldset>
+  <button type="submit">Meklēt</button>
+  {% if meklet or status or tema_id %}<a href="{{ url_for('iesniegumu_saraksts') }}">Notīrīt filtrus</a>{% endif %}
+</form>
+
+<table>
+  <caption>Iesniegumi ({{ iesniegumi|length }} atrasti)</caption>
+  <thead>
+    <tr>
+      <th scope="col">Numurs</th>
+      <th scope="col">Datums</th>
+      <th scope="col">Tēma</th>
+      <th scope="col">Iesniedzējs</th>
+      <th scope="col">Statuss</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for iesniegums in iesniegumi %}
+    <tr>
+      <td data-label="Numurs"><a href="{{ url_for('iesnieguma_detalas', numurs=iesniegums.numurs) }}">Iesniegums {{ iesniegums.numurs }}</a></td>
+      <td data-label="Datums"><time datetime="{{ iesniegums.izveidots|replace(' ', 'T') }}">{{ iesniegums.izveidots }}</time></td>
+      <td data-label="Tēma">{{ iesniegums.tema }}</td>
+      <td data-label="Iesniedzējs">{{ iesniegums.vards }}</td>
+      <td data-label="Statuss"><span class="statuss {{ statusu_klases[iesniegums.statuss] }}">{{ iesniegums.statuss }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">Pēc norādītajiem kritērijiem iesniegumi nav atrasti.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
