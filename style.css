@@ -128,7 +128,7 @@ th { background: #f0f0f0; }
 
 /* MI ieteikuma bloks — skaidri nodalīts un marķēts */
 .mi-bloks { border: 2px dashed var(--mala); padding: 1rem; margin: 1rem 0; background: #f7f7f7; }
-.mi-bloks .marks { font-weight: 700; }
+.marks { font-weight: 700; }
 
 /* Reflow: 320 px platumā nekas neizlec ārā (1.4.10) */
 @media (max-width: 40rem) {

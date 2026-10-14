@@ -2,6 +2,7 @@
 import os
 import re
 import sqlite3
+from ai import ieteikums
 from flask import Flask, abort, g, render_template, send_file, session, redirect, url_for, request
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data.db")
@@ -206,6 +207,9 @@ def iesnieguma_detalas(numurs):
     atlautie_statusi = STATUSU_PAREJAS[iesniegums["statuss"]]
     values = {"jauns_statuss": "", "komentars": "", "atbilde": iesniegums["atbilde"] or ""}
     errors = {}
+    mi = None
+    mi_projekts = False
+    mi_pazinojums = None
 
     if request.method == "POST":
         darbiba = request.form.get("darbiba")
@@ -252,6 +256,23 @@ def iesnieguma_detalas(numurs):
                     (iesniegums["id"], session["loma"], values["atbilde"]),
                 )
                 pazinojums = "Atbilde saglabāta."
+        elif darbiba == "mi_ieteikums":
+            mi = ieteikums(iesniegums["apraksts"])
+        elif darbiba == "mi_izmantot":
+            # MI projekts tikai ievietots rediģējamā laukā; saglabā darbinieks ar «Saglabāt atbildi»
+            projekts = request.form.get("atbildes_projekts", "").strip()
+            if not projekts:
+                abort(400)
+            values["atbilde"] = projekts
+            mi_projekts = True
+            db.execute(
+                "INSERT INTO notikumi (iesnieguma_id, veids, loma, teksts) VALUES (?, 'mi_ieteikums', ?, ?)",
+                (iesniegums["id"], session["loma"],
+                 "MI atbildes projekts ievietots atbildes laukā (vēl nav saglabāts)."),
+            )
+            db.commit()
+            mi_pazinojums = ("MI atbildes projekts ievietots laukā «Atbildes teksts». "
+                             "Pārbaudiet un rediģējiet to, tad saglabājiet.")
         else:
             abort(400)
 
@@ -267,7 +288,8 @@ def iesnieguma_detalas(numurs):
     return render_template(
         "iesnieguma_detalas.html", iesniegums=iesniegums, notikumi=notikumi,
         statusu_klase=STATUSU_KLASES[iesniegums["statuss"]], atlautie_statusi=atlautie_statusi,
-        values=values, errors=errors, pazinojums=session.pop("pazinojums", None),
+        values=values, errors=errors, pazinojums=mi_pazinojums or session.pop("pazinojums", None),
+        mi=mi, mi_projekts=mi_projekts,
         notikumu_veidi=NOTIKUMU_VEIDI, lomu_nosaukumi={**LOMAS, "sistema": "Sistēma"},
     ), 400 if errors else 200
 

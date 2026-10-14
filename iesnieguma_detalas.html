@@ -60,11 +60,39 @@
 <p>Iesniegums ir slēgts ar statusu «{{ iesniegums.statuss }}»; statusu vairs mainīt nevar.</p>
 {% endif %}
 
+<section class="mi-bloks" id="mi-ieteikums" aria-labelledby="mi-virsraksts">
+  <h2 id="mi-virsraksts">MI ieteikums</h2>
+  <p class="marks">Ģenerēts ar MI – pārbaudiet pirms lietošanas.</p>
+  {% if mi %}
+  <dl>
+    <dt>Ieteiktā tēma</dt>
+    <dd>{{ mi.tema }}</dd>
+    <dt>Atbildes projekts</dt>
+    <dd>{{ mi.atbildes_projekts }}</dd>
+    <dt>Avots</dt>
+    <dd>{{ mi.avots }}</dd>
+  </dl>
+  <p>Ieteikums netiek saglabāts vai nosūtīts automātiski. Poga ievieto projektu atbildes laukā, kur to var rediģēt.</p>
+  <form method="post" action="{{ url_for('iesnieguma_detalas', numurs=iesniegums.numurs) }}#atbildes-sadala">
+    <input type="hidden" name="darbiba" value="mi_izmantot">
+    <input type="hidden" name="atbildes_projekts" value="{{ mi.atbildes_projekts }}">
+    <button type="submit">Izmantot projektu</button>
+  </form>
+  {% else %}
+  <p>MI var ieteikt tēmu un sagatavot atbildes projektu pēc iesnieguma apraksta. Lēmumu pieņem darbinieks.</p>
+  <form method="post" action="{{ url_for('iesnieguma_detalas', numurs=iesniegums.numurs) }}#mi-ieteikums">
+    <input type="hidden" name="darbiba" value="mi_ieteikums">
+    <button type="submit" class="secondary">Saņemt MI ieteikumu</button>
+  </form>
+  {% endif %}
+</section>
+
 <h2 id="atbildes-sadala">Atbilde iedzīvotājam</h2>
 <form method="post" action="{{ url_for('iesnieguma_detalas', numurs=iesniegums.numurs) }}" novalidate>
   <input type="hidden" name="darbiba" value="atbilde">
   <label for="atbilde">Atbildes teksts (obligāts)</label>
-  <textarea id="atbilde" name="atbilde" required{% if errors.get('atbilde') %} aria-invalid="true" aria-describedby="atbilde-kluda"{% endif %}>{{ values.atbilde }}</textarea>
+  {% if mi_projekts %}<p class="marks" id="atbilde-mi">Ģenerēts ar MI – pārbaudiet pirms lietošanas. Teksts vēl nav saglabāts.</p>{% endif %}
+  <textarea id="atbilde" name="atbilde" required{% if errors.get('atbilde') %} aria-invalid="true" aria-describedby="atbilde-kluda"{% elif mi_projekts %} aria-describedby="atbilde-mi"{% endif %}>{{ values.atbilde }}</textarea>
   {% if errors.get('atbilde') %}<p class="kluda-teksts" id="atbilde-kluda">{{ errors.atbilde }}</p>{% endif %}
   <button type="submit">Saglabāt atbildi</button>
 </form>
